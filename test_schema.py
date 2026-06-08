@@ -17,7 +17,7 @@ def test_intel_validation():
         "title": "Phishing Campaign",
         "severity": 3,
         "ioc_value": "1.1.1.1",
-        "ioc_type": "IP",
+        "ioc_type": "ipv4",
     }
     try:
         intel = ThreatIntel(**valid_data)
@@ -27,10 +27,10 @@ def test_intel_validation():
 
     # Test case: Invalid data(Severity out of range)
     invalid_data = {
-        "title": "Malformed Entry",
+        "title": "Bad IOC Entry",
         "severity": 10,
-        "ioc_value": "1.1.1.1",
-        "ioc_type": "IP",
+        "ioc_value": "1.1",
+        "ioc_type": "domain",
     }
     try:
         ThreatIntel(**invalid_data)
