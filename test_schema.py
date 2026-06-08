@@ -13,15 +13,25 @@ def test_intel_validation():
     """Runs validation tests against the ThreatIntel model."""
 
     # Test case: Valid data
-    valid_data = {"title": "Phishing Campaign", "severity": 3, "ioc": "1.1.1.1"}
+    valid_data = {
+        "title": "Phishing Campaign",
+        "severity": 3,
+        "ioc_value": "1.1.1.1",
+        "ioc_type": "IP",
+    }
     try:
         intel = ThreatIntel(**valid_data)
-        logging.info(f"Validation passed for:{intel.title}")
+        logging.info(f"Successfully validated:{intel.title}")
     except Exception as e:
-        logging.error(f"Validation failed:{e}")
+        logging.error(f"Failed:{e}")
 
     # Test case: Invalid data(Severity out of range)
-    invalid_data = {"title": "Mailformed Entry", "severity": 10, "ioc": "1.1.1.1"}
+    invalid_data = {
+        "title": "Malformed Entry",
+        "severity": 10,
+        "ioc_value": "1.1.1.1",
+        "ioc_type": "IP",
+    }
     try:
         ThreatIntel(**invalid_data)
     except Exception as e:
