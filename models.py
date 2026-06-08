@@ -9,7 +9,7 @@ class ThreatIntel(BaseModel):
     # Restrict severity to a standard 1-5 scale
     severity: int = Field(..., ge=1, le=5, description="Risk level (1-5)")
 
-    # Store indocator value and its type (e.g., IP, domain)
+    # Store indicator value and its type (e.g., IP, domain, etc.)
     ioc_value: str = Field(..., description="The indicator value")
     ioc_type: str = Field(..., description="The type of the indicator")
 
