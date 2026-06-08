@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, Literal
 
 
 class ThreatIntel(BaseModel):
@@ -11,11 +11,13 @@ class ThreatIntel(BaseModel):
 
     # Store indicator value and its type (e.g., IP, domain, etc.)
     ioc_value: str = Field(..., description="The indicator value")
-    ioc_type: str = Field(..., description="The type of the indicator")
+    ioc_type: Literal["ipv4", "ipv6", "domain", "url", "sha256", "md5"] = Field(
+        ..., description="The type of the indicator"
+    )
 
     @field_validator("ioc_value")
     @classmethod
-    def validate_ioc_length(cls, v: str) -> str:
+    def validate_ioc_format(cls, v: str) -> str:
         # Ensure the IOC is not empty and meets minimum length.
         if not v or len(v) < 3:
             raise ValueError("IOC format is invalid:too short")
