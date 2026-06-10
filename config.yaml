@@ -1,0 +1,5 @@
+# General application settings
+app_name: "ThreatIntelAggregator"
+logging:
+  level: "INFO"
+  file: "app.log"
