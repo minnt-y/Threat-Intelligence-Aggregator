@@ -1,11 +1,12 @@
 import os
 import yaml
 from dotenv import load_dotenv
+from pathlib import Path
 
-logging.basicConfig(filename="app.log", level=logging.INFO)
+BASE_DIR = Path(__file__).resolve().parent
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(BASE_DIR / ".env")
 
 # Read API keys and other sensitive information
 VT_API_KEY = os.getenv("VT_API_KEY")
@@ -13,7 +14,8 @@ VT_API_KEY = os.getenv("VT_API_KEY")
 
 # Load configuration from YAML
 def load_config():
-    with open("config.yaml", "r") as f:
+    config_path = BASE_DIR / "config.yaml"
+    with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

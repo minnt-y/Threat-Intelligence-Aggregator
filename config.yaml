@@ -1,5 +1,16 @@
 # General application settings
 app_name: "ThreatIntelAggregator"
+
 logging:
   level: "INFO"
   file: "app.log"
+
+api:
+  virustotal:
+    base_url: "https://www.virustotal.com/api/v3"
+    timeout: 30
+    rate_limit: 4
+
+risk_scoring:
+  high_threshold: 80
+  medium_threshold: 50
