@@ -21,9 +21,9 @@ def test_intel_validation():
     }
     try:
         intel = ThreatIntel(**valid_data)
-        logging.info(f"Successfully validated:{intel.title}")
+        logging.info(f"Successfully validated: {intel.title}")
     except Exception as e:
-        logging.error(f"Failed:{e}")
+        logging.error(f"Failed: {e}")
 
     # Test case: Invalid data(Severity out of range)
     invalid_data = {
@@ -35,7 +35,7 @@ def test_intel_validation():
     try:
         ThreatIntel(**invalid_data)
     except Exception as e:
-        logging.warning(f"Data validation blocked an entry:{e}")
+        logging.warning(f"Data validation blocked an entry: {e}")
 
 
 if __name__ == "__main__":

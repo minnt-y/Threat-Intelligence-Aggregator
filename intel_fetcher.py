@@ -10,7 +10,9 @@ logging.basicConfig(
 )
 
 # Read rate limit from config.yaml
-RATE_LIMIT = settings["api"]["virustotal"]["rate_limit"]  # 4 request/minute
+VT_CONFIG = settings["api"]["virustotal"]
+RATE_LIMIT = VT_CONFIG["rate_limit"]  # 4
+
 CALLS = 1
 PERIOD = 60 / RATE_LIMIT
 
@@ -21,16 +23,15 @@ class VTClient:
     """
 
     def __init__(self):
-        # Load configuration from config.yaml and .env
         self.api_key = VT_API_KEY
-        self.base_url = settings["api"]["virustotal"]["base_url"]
-        self.timeout = settings["api"]["virustotal"]["timeout"]
+        self.base_url = VT_CONFIG["base_url"]
+        self.timeout = VT_CONFIG["timeout"]
         self.headers = {"x-apikey": self.api_key, "Accept": "application/json"}
 
     @sleep_and_retry
     @limits(calls=CALLS, period=PERIOD)
-    def get_ip_report(self, ip_address):
-        # Fetch threat intelligence report for a given IP address from VirusTotal API.
+    def get_ip_report(self, ip_address: str) -> dict | None:
+        """Fetch threat intelligence report for a given IP."""
         url = f"{self.base_url}/ip_addresses/{ip_address}"
 
         try:
@@ -49,7 +50,7 @@ class VTClient:
                 stats = attributes.get("last_analysis_stats", {})
                 return stats
             else:
-                logging.error(f"Failed:{response.status_code}: {response.text}")
+                logging.error(f"Failed: {response.status_code} | {response.text}")
                 return None
 
         except Exception as e:
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     for ip in test_ips:
         stats = client.get_ip_report(ip)
         if stats:
-            print(f"Data retrieved successfully - {ip}: {stats}")
+            print(f"[OK] {ip}: {stats}")
             # Extract and print the analysis stats from the response
         else:
-            print("Failed to retrieve data. Check your app.log for details.")
+            print("[FAILed] - {ip}")
