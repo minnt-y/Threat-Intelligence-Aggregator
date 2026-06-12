@@ -1,12 +1,18 @@
 import time
 import requests
 import logging
+from ratelimit import limits, sleep_and_retry
 from config import VT_API_KEY, settings
 
 # Temporary logging configuration
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+# Read rate limit from config.yaml
+RATE_LIMIT = settings["api"]["virustotal"]["rate_limit"]  # 4 request/minute
+CALLS = 1
+PERIOD = 60 / RATE_LIMIT
 
 
 class VTClient:
@@ -21,6 +27,8 @@ class VTClient:
         self.timeout = settings["api"]["virustotal"]["timeout"]
         self.headers = {"x-apikey": self.api_key, "Accept": "application/json"}
 
+    @sleep_and_retry
+    @limits(calls=CALLS, period=PERIOD)
     def get_ip_report(self, ip_address):
         # Fetch threat intelligence report for a given IP address from VirusTotal API.
         url = f"{self.base_url}/ip_addresses/{ip_address}"
@@ -34,7 +42,7 @@ class VTClient:
 
             # check if the request was successful
             if response.status_code == 200:
-                # Parse the JSON response and exteact analysis stastics
+                # Parse the JSON response and extract analysis stastics
                 result = response.json()
                 data = result.get("data", {})
                 attributes = data.get("attributes", {})
@@ -51,13 +59,14 @@ class VTClient:
 
 
 if __name__ == "__main__":
-    # Test the function with a public DNS IP (8.8.8.8)
+    # Test the function with multiple calls
     client = VTClient()
-    test_ip = "8.8.8.8"
-    stats = client.get_ip_report(test_ip)
+    test_ips = ["8.8.8.8", "1.1.1.1", "9.9.9.9"]
 
-    if stats:
-        print(f"Data retrieved successfully - {test_ip}: {stats}")
-        # Extract and print the analysis stats from the response
-    else:
-        print("Failed to retrieve data. Check your app.log for details.")
+    for ip in test_ips:
+        stats = client.get_ip_report(ip)
+        if stats:
+            print(f"Data retrieved successfully - {ip}: {stats}")
+            # Extract and print the analysis stats from the response
+        else:
+            print("Failed to retrieve data. Check your app.log for details.")
