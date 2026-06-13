@@ -1,0 +1,9 @@
+from intel_fetcher import VTClient
+from risk_engine import analyze_ip
+
+client = VTClient()
+stats = client.get_ip_report("8.8.8.8")
+
+if stats:
+    result = analyze_ip(stats, "8.8.8.8")
+    print(result)
