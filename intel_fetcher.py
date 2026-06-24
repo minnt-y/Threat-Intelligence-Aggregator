@@ -43,7 +43,7 @@ class VTClient:
 
             # check if the request was successful
             if response.status_code == 200:
-                # Parse the JSON response and extract analysis stastics
+                # Parse the JSON response and extract analysis statistics
                 result = response.json()
                 data = result.get("data", {})
                 attributes = data.get("attributes", {})

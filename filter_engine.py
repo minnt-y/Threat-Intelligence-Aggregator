@@ -51,7 +51,7 @@ def check_filter(ioc_value: str, ioc_type: Literal["ipv4", "domain"]) -> dict:
 
 
 if __name__ == "__main__":
-    # Test whitelist
+    # Test blacklist
     print(check_filter("example-malicious.com", "domian"))
 
     # Test neutral
