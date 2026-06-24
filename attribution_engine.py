@@ -1,9 +1,7 @@
-import logging
 from typing import Dict, List, Optional
+from logger_config import setup_logger
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 # Known threat actor profiles (simplified)
 THREAT_ACTORS = {
@@ -66,10 +64,10 @@ def match_attribution(ioc_value: str, ioc_type: str, ttp: str = "") -> Optional[
     if matches:
         matches.sort(key=lambda x: x["score"], reverse=True)
         best = matches[0]
-        logging.info(f"Attribution: {best['actor']} (confidence: {best['confidence']})")
+        logger.info(f"Attribution: {best['actor']} (confidence: {best['confidence']})")
         return best
 
-    logging.info("No attribution match found")
+    logger.info("No attribution match found")
     return None
 
 

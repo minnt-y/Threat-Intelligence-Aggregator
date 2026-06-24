@@ -1,22 +1,19 @@
 import socket
-import logging
 from typing import Dict, List
+from logger_config import setup_logger
 
-# Temporary Logging configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 
 def validate_domain(domain: str) -> Dict:
     try:
         # Get IP address from domain (A record)
         ip = socket.gethostbyname(domain)
-        logging.info(f"Domain {domain} resolved to {ip}")
+        logger.info(f"Domain {domain} resolved to {ip}")
         return {"domain": domain, "exists": True, "ip": ip}
     except socket.gaierror:
         # DNS resolution failed
-        logging.warning(f"Domain {domain} does not exist")
+        logger.warning(f"Domain {domain} does not exist")
         return {"domain": domain, "exists": False, "ip": None}
 
 

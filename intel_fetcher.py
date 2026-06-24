@@ -1,13 +1,10 @@
 import time
 import requests
-import logging
 from ratelimit import limits, sleep_and_retry
 from config import VT_API_KEY, settings
+from logger_config import setup_logger
 
-# Temporary logging configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 # Read rate limit from config.yaml
 VT_CONFIG = settings["api"]["virustotal"]
@@ -35,11 +32,9 @@ class VTClient:
         url = f"{self.base_url}/ip_addresses/{ip_address}"
 
         try:
-            logging.info(f"Quering IP: {ip_address}")
+            logger.info(f"Quering IP: {ip_address}")
             response = requests.get(url, headers=self.headers, timeout=self.timeout)
-            logging.info(
-                f"Response status: {response.status_code} for IP: {ip_address}"
-            )
+            logger.info(f"Response status: {response.status_code} for IP: {ip_address}")
 
             # check if the request was successful
             if response.status_code == 200:
@@ -50,12 +45,12 @@ class VTClient:
                 stats = attributes.get("last_analysis_stats", {})
                 return stats
             else:
-                logging.error(f"Failed: {response.status_code} | {response.text}")
+                logger.error(f"Failed: {response.status_code} | {response.text}")
                 return None
 
         except Exception as e:
             # Log any unexpected network or parsing errors
-            logging.error(f"Unexpected error: {str(e)}")
+            logger.error(f"Unexpected error: {str(e)}")
             return None
 
 

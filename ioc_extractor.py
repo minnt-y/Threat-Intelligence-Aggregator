@@ -1,11 +1,8 @@
 import re
-import logging
 from typing import List, Dict
+from logger_config import setup_logger
 
-# Temporary logging configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 # Regex patterns for IOC extraction
 IOC_PATTERNS = {
@@ -38,7 +35,7 @@ def extract_iocs(text: str) -> Dict[str, List[str]]:
 
         results[ioc_type] = unique_matches
         if unique_matches:
-            logging.info(f"Found {len(unique_matches)} {ioc_type}(s)")
+            logger.info(f"Found {len(unique_matches)} {ioc_type}(s)")
 
     return results
 

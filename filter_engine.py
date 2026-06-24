@@ -1,10 +1,7 @@
-import logging
 from typing import Literal
+from logger_config import setup_logger
 
-# Temporary logging configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 # Whitelist: known safe domains/IPs
 WHITELIST = {
@@ -37,16 +34,16 @@ def check_filter(ioc_value: str, ioc_type: Literal["ipv4", "domain"]) -> dict:
 
     # Check whitelist first
     if ioc_value in WHITELIST:
-        logging.info(f"Filter: {ioc_value} -> WHITELIST")
+        logger.info(f"Filter: {ioc_value} -> WHITELIST")
         return {"action": "allow", "reason": "whitelist", "ioc": ioc_value}
 
     # Check blacklist
     if ioc_value in BLACKLIST:
-        logging.warning(f"Filter: {ioc_value} -> BLACKLIST")
+        logger.warning(f"Filter: {ioc_value} -> BLACKLIST")
         return {"action": "block", "reason": "blacklist", "ioc": ioc_value}
 
     # Neither: proceed to VT query
-    logging.info(f"Filter: {ioc_value} -> NEUTRAL (query VT)")
+    logger.info(f"Filter: {ioc_value} -> NEUTRAL (query VT)")
     return {"action": "query", "reason": "neutral", "ioc": ioc_value}
 
 

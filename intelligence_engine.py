@@ -1,5 +1,5 @@
-import logging
 from typing import Dict, List, Optional
+from logger_config import setup_logger
 
 from ioc_extractor import extract_iocs_flat
 from domain_validator import validate_domain
@@ -8,9 +8,7 @@ from intel_fetcher import VTClient
 from risk_engine import analyze_ip
 from attribution_engine import analyze_with_attribution
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = setup_logger(__name__)
 
 
 class IntelligenceEngine:
@@ -21,7 +19,7 @@ class IntelligenceEngine:
 
     def __init__(self):
         self.vt_client = VTClient()
-        logging.info("IntelligenceEngine initialized")
+        logger.info("IntelligenceEngine initialized")
 
     def analyze_ioc(self, ioc_value: str, ioc_type: str) -> Optional[Dict]:
         """
@@ -30,10 +28,10 @@ class IntelligenceEngine:
         # Step 1: Filter (Whitelist / blacklist)
         filter_result = check_filter(ioc_value, ioc_type)
         if filter_result["action"] == "allow":
-            logging.info(f"SKIP (Whitelist): {ioc_value}")
+            logger.info(f"SKIP (Whitelist): {ioc_value}")
             return None
         if filter_result["action"] == "block":
-            logging.warning(f"BLOCK(blacklist): {ioc_value}")
+            logger.warning(f"BLOCK(blacklist): {ioc_value}")
             return {
                 "ioc": ioc_value,
                 "type": ioc_type,
@@ -45,13 +43,13 @@ class IntelligenceEngine:
         if ioc_type == "domain":
             validation = validate_domain(ioc_value)
             if not validation["exists"]:
-                logging.warning(f"SKIP(invalid domain): {ioc_value}")
+                logger.warning(f"SKIP(invalid domain): {ioc_value}")
                 return None
 
         # Step 3: Query VT API
         stats = self.vt_client.get_ip_report(ioc_value)
         if not stats:
-            logging.error(f"VT query failed: {ioc_value}")
+            logger.error(f"VT query failed: {ioc_value}")
             return None
 
         # Step 4: Risk scoring
@@ -72,15 +70,15 @@ class IntelligenceEngine:
         """
         Analyze arbitrary text: extract IOCs and process each.
         """
-        logging.info(f"Analyzing text: {text[:50]}...")
+        logger.info(f"Analyzing text: {text[:50]}...")
 
         # Extract IOCs
         iocs = extract_iocs_flat(text)
         if not iocs:
-            logging.info("No IOCs found")
+            logger.info("No IOCs found")
             return []
 
-        logging.info(f"found {len(iocs)} IOC(s)")
+        logger.info(f"found {len(iocs)} IOC(s)")
 
         # Process each IOC
         results = []
