@@ -11,7 +11,7 @@ MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 BACKUP_COUNT = 3
 
 
-def setup_logger(name: str = "thrat_intel") -> logging.Logger:
+def setup_logger(name: str = "threat_intel") -> logging.Logger:
     """
     Configure robust logging with rotation
     """
