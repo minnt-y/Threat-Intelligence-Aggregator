@@ -2,6 +2,7 @@ import time
 import requests
 from ratelimit import limits, sleep_and_retry
 from config import VT_API_KEY, settings
+from error_handler import safe_api_call, RateLimitError, TimeoutError, ValidationError
 from logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -18,6 +19,23 @@ class VTClient:
     """
     VirusTotal API client for fetching threat intelligence.
     """
+
+    def get_ip_report(self, ip_address: str) -> dict | None:
+        def _fetch():
+            url = f"{self.base_url}/ip_addresses/{ip_address}"
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+
+            if response.status_code == 429:
+                raise RateLimitError("VT rate limit")
+            elif response.status_code >= 500:
+                raise TimeoutError("Server error")
+
+            return response.json()
+
+        result = safe_api_call(_fetch, max_retries=3)
+        if result:
+            return parse_vt_response(result)
+        return None
 
     def __init__(self):
         self.api_key = VT_API_KEY

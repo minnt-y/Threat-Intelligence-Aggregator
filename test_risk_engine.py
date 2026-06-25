@@ -8,7 +8,7 @@ def test_calculate_risk_score_clean():
     """
     stats = {"malicious": 0, "suspicious": 0, "harmless": 55, "undetected": 36}
     score = calculate_risk_score(stats)
-    assert score == 0.0  # (10+5)/65 = 0.23
+    assert score == 0.0
 
 
 def test_calculate_risk_score_empty():
