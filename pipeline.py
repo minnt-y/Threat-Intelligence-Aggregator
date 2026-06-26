@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     print(f"\n--- Final Results ({len(results)} item(s))---")
     for r in results:
-        print(f"\nIOC: {r['ioc']}")
+        print(f"\n  IOC: {r['ioc']}")
         if "risk" in r:
             print(f"  Risk: {r['risk']['level']} ({r['risk']['score']})")
         if r.get("attribution"):
