@@ -20,23 +20,6 @@ class VTClient:
     VirusTotal API client for fetching threat intelligence.
     """
 
-    def get_ip_report(self, ip_address: str) -> dict | None:
-        def _fetch():
-            url = f"{self.base_url}/ip_addresses/{ip_address}"
-            response = requests.get(url, headers=self.headers, timeout=self.timeout)
-
-            if response.status_code == 429:
-                raise RateLimitError("VT rate limit")
-            elif response.status_code >= 500:
-                raise TimeoutError("Server error")
-
-            return response.json()
-
-        result = safe_api_call(_fetch, max_retries=3)
-        if result:
-            return parse_vt_response(result)
-        return None
-
     def __init__(self):
         self.api_key = VT_API_KEY
         self.base_url = VT_CONFIG["base_url"]
@@ -49,22 +32,28 @@ class VTClient:
         """Fetch threat intelligence report for a given IP."""
         url = f"{self.base_url}/ip_addresses/{ip_address}"
 
+        def _fetch():
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+
+            if response.status_code == 429:
+                raise RateLimitError("VT rate limit")
+            elif response.status_code >= 500:
+                raise TimeoutError("Server error")
+
+            return response.json()
+
         try:
             logger.info(f"Quering IP: {ip_address}")
-            response = requests.get(url, headers=self.headers, timeout=self.timeout)
-            logger.info(f"Response status: {response.status_code} for IP: {ip_address}")
+            result = safe_api_call(_fetch, max_retries=3)
 
             # check if the request was successful
-            if response.status_code == 200:
-                # Parse the JSON response and extract analysis statistics
-                result = response.json()
+            if result:
                 data = result.get("data", {})
                 attributes = data.get("attributes", {})
                 stats = attributes.get("last_analysis_stats", {})
                 return stats
             else:
-                logger.error(f"Failed: {response.status_code} | {response.text}")
-                return None
+                logger.error(f"All retries failed for IP: {ip_address}")
 
         except Exception as e:
             # Log any unexpected network or parsing errors
