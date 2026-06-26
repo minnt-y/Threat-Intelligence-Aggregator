@@ -8,7 +8,27 @@ from intel_fetcher import VTClient
 from risk_engine import analyze_ip
 from attribution_engine import analyze_with_attribution
 
+from database import SessionLocal, AlertRecord, get_db
+
 logger = setup_logger(__name__)
+
+
+def save_alert(result: dict):
+    db = next(get_db())
+    try:
+        alert = AlertRecord(
+            ioc_value=result["ioc"],
+            ioc_type=result["type"],
+            risk_level=result.get("risk", {}).get("level", "UNKNOWN"),
+            risk_score=result.get("risk", {}).get("score", 0.0),
+            attribution=result.get("attribution"),
+        )
+        db.add(alert)
+        db.commit()
+        logger.info(f"Saved to DB: {result['ioc']}")
+    except Exception as e:
+        logger.error(f"DB save failed: {e}")
+        db.rollback()
 
 
 class ThreatPipeline:
