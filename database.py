@@ -1,17 +1,4 @@
 import os
-
-DEV_MODE = True
-
-
-def init_db():
-    if DEV_MODE and os.path.exists("threat_intel.db"):
-        os.remove("threat_intel.db")
-        print("Removed old database")
-
-    Base.metadata.create_all(bind=engine)
-    print("Database initialized with schema: alerts, iocs, sources, attributions")
-
-
 from sqlalchemy import (
     create_engine,
     Column,
@@ -26,8 +13,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime, timezone
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.path.join(BASE_DIR, "threat_intel.db")
+DEV_MODE = True
+
 # SOLite database file
-DATABASE_URL = "sqlite:///threat_intel.db"
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 # Create engine
 engine = create_engine(DATABASE_URL, echo=False)
@@ -122,6 +113,10 @@ class Alert(Base):
 
 
 def init_db():
+    if DEV_MODE and os.path.exists(DATABASE_PATH):
+        os.remove(DATABASE_PATH)
+        print("Removed old database")
+
     """Create all tables."""
     Base.metadata.create_all(bind=engine)
     print("Database initialized with schema: alerts, iocs, sources, attributions")
