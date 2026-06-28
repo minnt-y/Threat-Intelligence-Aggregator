@@ -12,6 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime, timezone
+from schemas import IOCResponse, AlertResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, "threat_intel.db")
@@ -162,8 +163,30 @@ if __name__ == "__main__":
     db.add(alert)
     db.commit()
 
-    # Query with join
+    # ========== Pydantic Schema Test ==========
+    print("\n" + "=" * 50)
+    print("Day 23: Pydantic Schema Serialization Test")
+    print("=" * 50)
+
+    from schemas import AlertResponse, IOCWithAlerts, SourceResponse
+
+    # Test 1: Serialize Alert with nested IOC and Source
     result = db.query(Alert).join(IOC).join(Source).first()
-    print(
-        f"Alert: {result.ioc.value} | Source: {result.source.name} | Risk: {result.risk_level}"
-    )
+    alert_schema = AlertResponse.model_validate(result)
+    print("\n--- Test 1: AlertResponse ---")
+    print(alert_schema.model_dump_json(indent=2))
+
+    # Test 2: Serialize IOC with relationships
+    ioc_full = db.query(IOC).filter(IOC.value == "8.8.8.8").first()
+    ioc_schema = IOCWithAlerts.model_validate(ioc_full)
+    print("\n--- Test 2: IOCWithAlerts ---")
+    print(ioc_schema.model_dump_json(indent=2))
+
+    # Test 3: Serialize Source
+    source_schema = SourceResponse.model_validate(vt)
+    print("\n--- Test 3: SourceResponse ---")
+    print(source_schema.model_dump_json(indent=2))
+
+    print("\n" + "=" * 50)
+    print("All schema tests passed!")
+    print("=" * 50)
