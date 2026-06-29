@@ -134,59 +134,65 @@ def get_db():
 
 # Test
 if __name__ == "__main__":
-    init_db()
+    # Use Alembic to create tables (not Base.metadata.create_all)
+    # alembic upgrade head  # Run this in terminal first
 
     db = next(get_db())
 
-    # Insert test source
-    vt = Source(
-        name="virustotal",
-        description="VirusTotal API",
-        api_endpoint="https://www.virustotal.com/api/v3",
+    from crud import (
+        create_source,
+        create_ioc,
+        create_alert,
+        get_risk_report,
+        alert_exists,
+        delete_old_iocs,
     )
-    db.add(vt)
-    db.commit()
+    from schemas import SourceCreate, IOCCreate, AlertCreate
 
-    # Insert test IOC
-    ioc = IOC(value="8.8.8.8", type="ipv4")
-    db.add(ioc)
-    db.commit()
-
-    # Insert test alert
-    alert = Alert(
-        ioc_id=ioc.id,
-        source_id=vt.id,
-        risk_level="LOW",
-        risk_score=0.0,
-        raw_data={"malicious": 0, "harmless": 55},
-    )
-    db.add(alert)
-    db.commit()
-
-    # ========== Pydantic Schema Test ==========
-    print("\n" + "=" * 50)
-    print("Day 23: Pydantic Schema Serialization Test")
+    print("=" * 50)
+    print("Day 25: CRUD Operations Test")
     print("=" * 50)
 
-    from schemas import AlertResponse, IOCWithAlerts, SourceResponse
+    # Test 1: Create Source
+    source = create_source(
+        db,
+        SourceCreate(
+            name="virustotal",
+            description="VirusTotal API",
+            api_endpoint="https://www.virustotal.com/api/v3",
+        ),
+    )
+    print(f"\n✅ Source created: {source.name}")
 
-    # Test 1: Serialize Alert with nested IOC and Source
-    result = db.query(Alert).join(IOC).join(Source).first()
-    alert_schema = AlertResponse.model_validate(result)
-    print("\n--- Test 1: AlertResponse ---")
-    print(alert_schema.model_dump_json(indent=2))
+    # Test 2: Create IOC
+    ioc = create_ioc(db, IOCCreate(value="8.8.8.8", type="ipv4"))
+    print(f"✅ IOC created: {ioc.value} ({ioc.type})")
 
-    # Test 2: Serialize IOC with relationships
-    ioc_full = db.query(IOC).filter(IOC.value == "8.8.8.8").first()
-    ioc_schema = IOCWithAlerts.model_validate(ioc_full)
-    print("\n--- Test 2: IOCWithAlerts ---")
-    print(ioc_schema.model_dump_json(indent=2))
+    # Test 3: Create Alert
+    alert = create_alert(
+        db,
+        AlertCreate(
+            ioc_id=ioc.id,
+            source_id=source.id,
+            risk_level="LOW",
+            risk_score=5.0,
+            raw_data={"malicious": 0, "harmless": 55},
+        ),
+    )
+    print(f"✅ Alert created: {alert.risk_level} risk")
 
-    # Test 3: Serialize Source
-    source_schema = SourceResponse.model_validate(vt)
-    print("\n--- Test 3: SourceResponse ---")
-    print(source_schema.model_dump_json(indent=2))
+    # Test 4: Deduplication check
+    exists = alert_exists(db, ioc.id, source.id)
+    print(f"✅ Alert exists check: {exists}")
+
+    # Test 5: Risk Report
+    report = get_risk_report(db)
+    print(f"\n--- Risk Report ---")
+    print(f"Total alerts: {report.total_alerts}")
+    print(f"High: {report.high_risk_count}")
+    print(f"Medium: {report.medium_risk_count}")
+    print(f"Low: {report.low_risk_count}")
 
     print("\n" + "=" * 50)
-    print("All schema tests passed!")
+    print("All CRUD tests passed!")
     print("=" * 50)
