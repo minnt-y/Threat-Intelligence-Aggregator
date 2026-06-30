@@ -123,6 +123,7 @@ class SourceWithAlerts(SourceResponse):
 class RiskReport(BaseModel):
     total_alerts: int
     high_risk_count: int
+    medium_risk_count: int
     low_risk_count: int
     top_threat_actors: List[dict]
     recent_iocs: List[IOCResponse]

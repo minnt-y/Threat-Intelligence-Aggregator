@@ -114,11 +114,7 @@ class Alert(Base):
 
 
 def init_db():
-    if DEV_MODE and os.path.exists(DATABASE_PATH):
-        os.remove(DATABASE_PATH)
-        print("Removed old database")
-
-    """Create all tables."""
+    """Create all tables (fallback if Alembic not used)."""
     Base.metadata.create_all(bind=engine)
     print("Database initialized with schema: alerts, iocs, sources, attributions")
 
@@ -136,7 +132,7 @@ def get_db():
 if __name__ == "__main__":
     # Use Alembic to create tables (not Base.metadata.create_all)
     # alembic upgrade head  # Run this in terminal first
-
+    init_db()
     db = next(get_db())
 
     from crud import (
@@ -179,7 +175,10 @@ if __name__ == "__main__":
             raw_data={"malicious": 0, "harmless": 55},
         ),
     )
-    print(f"✅ Alert created: {alert.risk_level} risk")
+    if alert:
+        print(f"✅ Alert created: {alert.risk_level} risk")
+    else:
+        print("⚠️ Alert skipped (duplicate)")
 
     # Test 4: Deduplication check
     exists = alert_exists(db, ioc.id, source.id)
@@ -196,3 +195,20 @@ if __name__ == "__main__":
     print("\n" + "=" * 50)
     print("All CRUD tests passed!")
     print("=" * 50)
+
+    # Test 6: Deduplication
+    print("\n--- Test 6: Deduplication ---")
+    ioc2 = create_ioc(db, IOCCreate(value="8.8.8.8", type="ipv4"))  # Same value
+    print(f"Duplicate IOC returns same ID: {ioc.id == ioc2.id}")
+
+    alert2 = create_alert(
+        db,
+        AlertCreate(
+            ioc_id=ioc.id,
+            source_id=source.id,
+            risk_level="HIGH",
+            risk_score=80.0,
+            raw_data={"malicious": 10},
+        ),
+    )
+    print(f"Duplicate alert skipped: {alert2 is None}")

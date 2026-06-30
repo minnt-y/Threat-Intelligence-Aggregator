@@ -44,8 +44,12 @@ def get_iocs(db: Session, skip: int = 0, limit: int = 100) -> List[IOC]:
 
 
 # ========== Source CRUD ==========
-def create_source(db: Session, source: SourceCreate) -> Source:
-    """Create a new source"""
+def create_source(db: Session, source: SourceCreate) -> Optional[Source]:
+    """Create a new source or return existing one"""
+    existing = get_source_by_name(db, source.name)
+    if existing:
+        return existing
+
     db_source = Source(
         name=source.name,
         description=source.description,
@@ -63,8 +67,11 @@ def get_source_by_name(db: Session, name: str) -> Optional[Source]:
 
 
 # ========== Alert CRUD ==========
-def create_alert(db: Session, alert: AlertCreate) -> Alert:
-    """Cteate a new alert"""
+def create_alert(db: Session, alert: AlertCreate) -> Optional[Alert]:
+    """Cteate a new alert or return None if duplicate"""
+    if alert_exists(db, alert.ioc_id, alert.source_id):
+        return None  # skip duplicate
+
     db_alert = Alert(
         ioc_id=alert.ioc_id,
         source_id=alert.source_id,
@@ -91,8 +98,21 @@ def get_alerts_by_risk(db: Session, risk_level: str) -> List[Alert]:
 
 
 # ========== Attribution CRUD ==========
-def create_attribution(db: Session, attribution: AttributionCreate) -> Attribution:
-    """Create a new attribution."""
+def create_attribution(
+    db: Session, attribution: AttributionCreate
+) -> Optional[Attribution]:
+    """Create a new attribution or skip if duplicate."""
+    existing = (
+        db.query(Attribution)
+        .filter(
+            Attribution.ioc_id == attribution.ioc_id,
+            Attribution.actor_name == attribution.actor_name,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
     db_attr = Attribution(
         ioc_id=attribution.ioc_id,
         actor_name=attribution.actor_name,
