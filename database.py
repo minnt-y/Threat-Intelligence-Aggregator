@@ -144,6 +144,8 @@ if __name__ == "__main__":
         delete_old_iocs,
     )
     from schemas import SourceCreate, IOCCreate, AlertCreate
+    from maintenance import get_db_stats, cleanup_database, delete_old_iocs
+    from datetime import datetime, timezone, timedelta
 
     print("=" * 50)
     print("Day 25: CRUD Operations Test")
@@ -212,3 +214,52 @@ if __name__ == "__main__":
         ),
     )
     print(f"Duplicate alert skipped: {alert2 is None}")
+
+    # Day 27 test
+    print("\n--- Day 27: Maintenance ---")
+
+    # Setup: Create test data
+    source = create_source(db, SourceCreate(name="test", description="test"))
+
+    # Old IOC (60 days ago)
+    old_ioc = create_ioc(db, IOCCreate(value="1.1.1.1", type="ipv4"))
+    old_ioc.last_seen = datetime.now(timezone.utc) - timedelta(days=60)
+    db.commit()
+
+    # Recent IOC
+    new_ioc = create_ioc(db, IOCCreate(value="8.8.8.8", type="ipv4"))
+
+    # Alerts
+    create_alert(
+        db,
+        AlertCreate(
+            ioc_id=old_ioc.id, source_id=source.id, risk_level="LOW", risk_score=1.0
+        ),
+    )
+    create_alert(
+        db,
+        AlertCreate(
+            ioc_id=new_ioc.id, source_id=source.id, risk_level="HIGH", risk_score=80.0
+        ),
+    )
+
+    # Test 1: Stats before cleanup
+    print("\n--- Before Cleanup ---")
+    stats = get_db_stats(db)
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+
+    # Test 2: Cleanup old IOCs (30 days)
+    print("\n--- Cleanup ---")
+    deleted = delete_old_iocs(db, days=30)
+    print(f"IOCs deleted: {deleted}")
+
+    # Test 3: Stats after cleanup
+    print("\n--- After Cleanup ---")
+    stats = get_db_stats(db)
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+
+    print("\n" + "=" * 50)
+    print("Day 27 tests passed!")
+    print("=" * 50)
