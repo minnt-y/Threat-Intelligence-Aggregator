@@ -9,6 +9,7 @@ from sqlalchemy import (
     JSON,
     ForeignKey,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime, timezone
@@ -23,6 +24,15 @@ DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 # Create engine
 engine = create_engine(DATABASE_URL, echo=False)
+
+
+# Enable foreign key constraints for SQLite
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 
 # Base class for models
 Base = declarative_base()
