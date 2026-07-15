@@ -97,10 +97,49 @@ class ThreatAnalyzer:
         """Get top N IOCs by alert count."""
         return self.df.groupby("ioc_value").size().sort_values(ascending=False).head(n)
 
-    def get_top_threat_actors(self) -> pd.DataFrame:
-        """Get most active threat actors (placeholder)."""
-        # Will be implemented when attribution data is available
-        return pd.DataFrame()
+    def get_top_threat_actors(self, n: int = 5) -> pd.DataFrame:
+        """Get most active threat actors by IOC count."""
+        query = """
+        SELECT 
+            a.actor_name,
+            a.confidence,
+            COUNT(DISTINCT a.ioc_id) as ioc_count,
+            COUNT(DISTINCT al.id) as alert_count
+        FROM attributions a
+        LEFT JOIN alerts al ON al.ioc_id = a.ioc_id
+        GROUP BY a.actor_name
+        ORDER BY ioc_count DESC
+        LIMIT :limit
+        """
+        df = pd.read_sql(query, self.engine, params={"limit": n})
+        return df
+
+    def get_ioc_type_distribution(self) -> pd.Series:
+        """Get distribution of IOC types."""
+        return self.df["ioc_type"].value_counts()
+
+    def get_source_reliability(self) -> pd.DataFrame:
+        """Get average risk score by source."""
+        return (
+            self.df.groupby("source_name")
+            .agg({"risk_score": "mean", "alert_id": "count"})
+            .rename(columns={"alert_id": "alert_count"})
+            .sort_values("risk_score", ascending=False)
+        )
+
+    def get_risk_trend(self, days: int = 7) -> pd.DataFrame:
+        """Get risk score trend over last N days."""
+        cutoff = pd.Timestamp.now() - pd.Timedelta(days=days)
+        recent = self.df[self.df["created_at"] >= cutoff]
+
+        if len(recent) == 0:
+            return pd.DataFrame()
+
+        return (
+            recent.groupby([recent["created_at"].dt.date, "risk_level"])
+            .size()
+            .unstack(fill_value=0)
+        )
 
     def get_trend_data(self) -> pd.DataFrame:
         """Get daily alert trend."""
@@ -206,4 +245,51 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 50)
     print("Day 31 complete!")
+    print("=" * 50)
+
+    # Day 32: Advanced Statistics
+    print("\n" + "=" * 50)
+    print("Day 32: Advanced Statistics")
+    print("=" * 50)
+
+    # Add attribution test data
+    from crud import get_ioc_by_value
+
+    ioc1 = get_ioc_by_value(db, "8.8.8.8")
+    if not ioc1:
+        ioc1 = create_ioc(db, IOCCreate(value="8.8.8.8", type="ipv4"))
+        print(f"Created IOC: {ioc1.value}")
+
+    # Add attribution test data
+    from crud import create_attribution
+    from schemas import AttributionCreate, Confidence
+
+    attr = create_attribution(
+        db,
+        AttributionCreate(
+            ioc_id=ioc1.id,
+            actor_name="APT28",
+            confidence=Confidence.HIGH,
+            reasons=["infrastructure match"],
+        ),
+    )
+    print(f"\n✅ Attribution created: {attr.actor_name}")
+
+    # Reload to include attributions
+    analyzer.load_data().clean().transform()
+
+    print("\n--- IOC Type Distribution ---")
+    print(analyzer.get_ioc_type_distribution())
+
+    print("\n--- Source Reliability ---")
+    print(analyzer.get_source_reliability())
+
+    print("\n--- Top Threat Actors ---")
+    print(analyzer.get_top_threat_actors())
+
+    print("\n--- Risk Trend (7 days) ---")
+    print(analyzer.get_risk_trend())
+
+    print("\n" + "=" * 50)
+    print("Day 32 complete!")
     print("=" * 50)
