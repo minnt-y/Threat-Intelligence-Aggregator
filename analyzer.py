@@ -158,17 +158,43 @@ class ThreatAnalyzer:
             "top_ioc": self.get_top_iocs(1).index[0] if len(self.df) > 0 else None,
         }
 
+    def generate_report(self) -> Dict:
+        """Denerate comprehensive report with metadata."""
+        return {
+            "report_title": "Threat Intelligence Report",
+            "generated_at": pd.Timestamp.now().isoformat(),
+            "summary": self.get_summary(),
+            "risk_distribution": self.get_risk_distribution().to_dict(),
+            "top_iocs": self.get_top_iocs(10).to_dict(),
+            "top_threat_actors": self.get_top_threat_actors(10).to_dict("records"),
+            "source_reliability": self.get_source_reliability().to_dict("records"),
+            "total_records": len(self.df),
+        }
+
     def export_to_json(self, filepath: str):
         """Export processed data to JSON"""
         import os
+        import json
 
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        self.df.to_json(filepath, orient="records", indent=2, date_format="iso")
-        self.df.to_json(filepath, orient="records", indent=2)
+
+        report = self.generate_report()
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, ensure_ascii=False, default=str)
 
     def export_to_csv(self, filepath: str):
-        """Export processed data to CSV."""
+        """Export processed data to CSV with summary sheet."""
+        import os
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Main data
         self.df.to_csv(filepath, index=False)
+
+        # Summary as separate file
+        summary_path = filepath.replace(".csv", "_summary.csv")
+        summary_df = pd.DataFrame([self.get_summary()])
+        summary_df.to_csv(summary_path, index=False)
 
 
 # ========== Test ==========
@@ -292,4 +318,27 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 50)
     print("Day 32 complete!")
+    print("=" * 50)
+
+    # Day 33: Reporting Export
+    print("\n" + "=" * 50)
+    print("Day 33: Reporting Export")
+    print("=" * 50)
+
+    # Generate report
+    report = analyzer.generate_report()
+    print(f"\nReport title: {report['report_title']}")
+    print(f"Generated at: {report['generated_at']}")
+    print(f"Total records: {report['total_records']}")
+
+    # Export
+    analyzer.export_to_json("output/threat_report.json")
+    analyzer.export_to_csv("output/threat_report.csv")
+    print("\n✅ Exported report to:")
+    print("  - output/threat_report.json")
+    print("  - output/threat_report.csv")
+    print("  - output/threat_report_summary.csv")
+
+    print("\n" + "=" * 50)
+    print("Day 33 complete!")
     print("=" * 50)
