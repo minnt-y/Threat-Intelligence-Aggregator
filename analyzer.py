@@ -1,129 +1,144 @@
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, text
+from typing import Optional, Dict, List
 from database import DATABASE_URL
 
 
-def get_engine():
-    """Create SQLAlchemy engine for Pandas"""
-    return create_engine(DATABASE_URL)
+class ThreatAnalyzer:
+    """Analyzer for threat intelligence data"""
+
+    def __init__(self, db_url: str = DATABASE_URL):
+        """Initialize with database"""
+        self.engine = create_engine(db_url)
+        self.df: Optional[pd.DataFrame] = None
+
+    def load_data(self) -> "ThreatAnalyzer":
+        """Load data from dtabase."""
+        query = """
+        SELECT
+            a.id as alert_id,
+            a.risk_level,
+            a.risk_score,
+            a.created_at,
+            a.raw_data,
+            i.value as ioc_value,
+            i.type as ioc_type,
+            i.first_seen,
+            i.last_seen,
+            s.name as source_name
+        FROM alerts a
+        JOIN iocs i ON a.ioc_id = i.id
+        JOIN sources s ON a.source_id = s.id
+        """
+        self.df = pd.read_sql(query, self.engine)
+        return self
+
+    def clean(self) -> "ThreatAnalyzer":
+        """Clean and standardize data"""
+        if self.df is None:
+            raise ValueError("No data loaded. Call load_data() first.")
+
+        # Remove duplicates
+        self.df = self.df.drop_duplicates(subset=["alert_id"])
+
+        # Handle missing values
+        self.df["risk_level"] = self.df["risk_level"].str.upper()
+
+        # Convert timestamps
+        for col in ["created_at", "first_seen", "last_seen"]:
+            self.df[col] = pd.to_datetime(self.df[col])
+
+        # Remove outliers
+        self.df = self.df[(self.df["risk_score"] >= 0) & (self.df["risk_score"] <= 100)]
+
+        return self
+
+    def transform(self) -> "ThreatAnalyzer":
+        """Transform and engineer features."""
+        if self.df is None:
+            raise ValueError("No data loaded")
+
+        # Risk level to numeric
+        risk_map = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
+        self.df["risk_level_num"] = (
+            self.df["risk_level"].map(risk_map).fillna(0).astype(int)
+        )
+
+        # Time features
+        now = pd.Timestamp.now()
+        self.df["days_since_first_seen"] = (now - self.df["first_seen"]).dt.days
+        self.df["days_active"] = (self.df["last_seen"] - self.df["first_seen"]).dt.days
+
+        # Risk category
+        self.df["risk_category"] = pd.cut(
+            self.df["risk_score"],
+            bins=[0, 25, 50, 75, 100],
+            labels=["Minimal", "Low", "Medium", "Critical"],
+        )
+
+        # Normalize
+        min_score = self.df["risk_score"].min()
+        max_score = self.df["risk_score"].max()
+        if max_score > min_score:
+            self.df["risk_score_norm"] = (self.df["risk_score"] - min_score) / (
+                max_score - min_score
+            )
+        else:
+            self.df["risk_score_norm"] = 0.0
+
+        return self
+
+    def get_risk_distribution(self) -> pd.Series:
+        """Get risk level distribution."""
+        return self.df["risk_level"].value_counts()
+
+    def get_top_iocs(self, n: int = 5) -> pd.Series:
+        """Get top N IOCs by alert count."""
+        return self.df.groupby("ioc_value").size().sort_values(ascending=False).head(n)
+
+    def get_top_threat_actors(self) -> pd.DataFrame:
+        """Get most active threat actors (placeholder)."""
+        # Will be implemented when attribution data is available
+        return pd.DataFrame()
+
+    def get_trend_data(self) -> pd.DataFrame:
+        """Get daily alert trend."""
+        return (
+            self.df.groupby(self.df["created_at"].dt.date)
+            .size()
+            .reset_index(name="count")
+        )
+
+    def get_summary(self) -> Dict:
+        """Get summary statistics."""
+        return {
+            "total_alerts": len(self.df),
+            "avg_risk_score": self.df["risk_score"].mean(),
+            "high_risk_pct": (self.df["risk_level"] == "HIGH").mean() * 100,
+            "top_ioc": self.get_top_iocs(1).index[0] if len(self.df) > 0 else None,
+        }
+
+    def export_to_json(self, filepath: str):
+        """Export processed data to JSON"""
+        import os
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.df.to_json(filepath, orient="records", indent=2, date_format="iso")
+        self.df.to_json(filepath, orient="records", indent=2)
+
+    def export_to_csv(self, filepath: str):
+        """Export processed data to CSV."""
+        self.df.to_csv(filepath, index=False)
 
 
-def load_joined_data() -> pd.DataFrame:
-    """Load alerts with IOC and source details"""
-    engine = get_engine()
-    query = """
-    SELECT
-        a.id as alert_id,
-        a.risk_level,
-        a.risk_score,
-        a.created_at,
-        i.value as ioc_value,
-        i.type as ioc_type,
-        i.first_seen,
-        i.last_seen,
-        s.name as source_name
-    FROM alerts a
-    JOIN iocs i ON a.ioc_id = i.id
-    JOIN sources s ON a.source_id = s.id
-    """
-    df = pd.read_sql(query, engine)
-    return df
-
-
-# =============== Data Cleaning =================
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean and standardize data."""
-    df_clean = df.copy()
-
-    # Remove duplicates
-    df_clean = df_clean.drop_duplicates(subset=["alert_id"])
-
-    # Handle missing values
-    df_clean["risk_score"] = df_clean["risk_score"].fillna(0)
-    df_clean["description"] = df_clean.get("description", pd.Series()).fillna("Unknown")
-
-    # Standardize risk_level to uppercase
-    df_clean["risk_level"] = df_clean["risk_level"].str.upper()
-
-    # Convert timestamps
-    df_clean["created_at"] = pd.to_datetime(df_clean["created_at"])
-    df_clean["first_seen"] = pd.to_datetime(df_clean["first_seen"])
-    df_clean["last_seen"] = pd.to_datetime(df_clean["last_seen"])
-
-    # Remove outliers (risk_score > 100 or < 0)
-    df_clean = df_clean[(df_clean["risk_score"] >= 0) & (df_clean["risk_score"] <= 100)]
-
-    return df_clean
-
-
-# =============== Data Transformation ===================
-def transform_risk_level(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert risk_level to numeric score"""
-    risk_mapping = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
-    df["risk_level_num"] = df["risk_level"].map(risk_mapping).fillna(0).astype(int)
-    return df
-
-
-def extract_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Extract new features from data"""
-    # Days since first seen
-    now = pd.Timestamp.now()
-    df["days_since_first_seen"] = (now - df["first_seen"]).dt.days
-
-    # Days between first and last seen
-    df["days_active"] = (df["last_seen"] - df["first_seen"]).dt.days
-
-    # Risk category (binned)
-    df["risk_category"] = pd.cut(
-        df["risk_score"],
-        bins=[0, 25, 50, 75, 100],
-        labels=["Minimal", "Low", "Medium", "Critical"],
-    )
-
-    return df
-
-
-def normalize_scores(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize risk_score to 0-1 range."""
-    min_score = df["risk_score"].min()
-    max_score = df["risk_score"].max()
-
-    if max_score > min_score:
-        df["risk_score_norm"] = (df["risk_score"] - min_score) / (max_score - min_score)
-    else:
-        df["risk_score_norm"] = 0.0
-
-    return df
-
-
-# ========== Analysis Functions ==========
-def get_risk_distribution(df: pd.DataFrame) -> pd.Series:
-    """Count alerts by risk level"""
-    return df["risk_level"].value_counts()
-
-
-def get_average_risk_score(df: pd.DataFrame) -> float:
-    """Calculate average risk score"""
-    return df["risk_score"].mean()
-
-
-def get_top_iocs(df: pd.DataFrame, n: int = 5) -> pd.Series:
-    """Get top N IOCs by alert count"""
-    return df.groupby("ioc_value").size().sort_values(ascending=False).head(n)
-
-
-def get_summary_stats(df: pd.DataFrame) -> pd.DataFrame:
-    """Get summary statistics."""
-    return df[["risk_score", "risk_level_num", "days_active"]].describe()
-
-
+# ========== Test ==========
 if __name__ == "__main__":
     print("=" * 50)
-    print("Day 30: Data Transformation")
+    print("Day 31: Analyzer Class Test")
     print("=" * 50)
 
-    # Setup data
+    # Setup test data
     from database import get_db, init_db
     from crud import create_ioc, create_alert, create_source
     from schemas import IOCCreate, AlertCreate, SourceCreate
@@ -131,13 +146,10 @@ if __name__ == "__main__":
     init_db()
     db = next(get_db())
 
-    # Insert test data
-    engine = get_engine()
+    engine = create_engine(DATABASE_URL)
     with engine.connect() as conn:
         result = conn.execute(text("SELECT COUNT(*) FROM alerts"))
-        count = result.scalar()
-
-        if count == 0:
+        if result.scalar() == 0:
             print("Inserting test data...")
             source = create_source(
                 db,
@@ -147,7 +159,6 @@ if __name__ == "__main__":
             )
             ioc1 = create_ioc(db, IOCCreate(value="8.8.8.8", type="ipv4"))
             ioc2 = create_ioc(db, IOCCreate(value="example.com", type="domain"))
-
             create_alert(
                 db,
                 AlertCreate(
@@ -160,57 +171,39 @@ if __name__ == "__main__":
             create_alert(
                 db,
                 AlertCreate(
-                    ioc_id=ioc1.id,
-                    source_id=source.id,
-                    risk_level="HIGH",
-                    risk_score=85.0,
-                ),
-            )
-            create_alert(
-                db,
-                AlertCreate(
                     ioc_id=ioc2.id,
                     source_id=source.id,
                     risk_level="MEDIUM",
                     risk_score=55.0,
                 ),
             )
-            print("Test data inserted")
+            print("Test data inserted.")
 
-    # Load and transform
-    print("\n--- Loading Data ---")
-    df = load_joined_data()
-    print(f"Raw records: {len(df)}")
+    # Use Analyzer class
+    analyzer = ThreatAnalyzer()
+    analyzer.load_data().clean().transform()
 
-    print("\n--- Cleaning Data ---")
-    df = clean_data(df)
-    print(f"After cleaning: {len(df)}")
-    print(f"Null values: {df.isnull().sum().sum()}")
-
-    print("\n--- Transforming Data ---")
-    df = transform_risk_level(df)
-    df = extract_features(df)
-    df = normalize_scores(df)
-
-    print("\n--- New Columns ---")
-    new_cols = [
-        "risk_level_num",
-        "days_since_first_seen",
-        "days_active",
-        "risk_category",
-        "risk_score_norm",
-    ]
-    print(df[new_cols].head())
+    print(f"\nTotal alerts: {len(analyzer.df)}")
 
     print("\n--- Risk Distribution ---")
-    print(get_risk_distribution(df))
+    print(analyzer.get_risk_distribution())
 
-    print("\n--- Summary Statistics ---")
-    print(get_summary_stats(df))
+    print("\n--- Summary ---")
+    for key, value in analyzer.get_summary().items():
+        print(f"{key}: {value}")
 
     print("\n--- Top IOCs ---")
-    print(get_top_iocs(df))
+    print(analyzer.get_top_iocs())
+
+    print("\n--- Trend ---")
+    print(analyzer.get_trend_data())
+
+    # Export
+    analyzer.export_to_json("output/alerts.json")
+
+    analyzer.export_to_csv("output/alerts.csv")
+    print("\n✅ Exported to output/alerts.json and output/alerts.csv")
 
     print("\n" + "=" * 50)
-    print("Day 30 complete")
+    print("Day 31 complete!")
     print("=" * 50)

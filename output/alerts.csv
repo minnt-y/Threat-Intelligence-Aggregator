@@ -1,0 +1,2 @@
+alert_id,risk_level,risk_score,created_at,raw_data,ioc_value,ioc_type,first_seen,last_seen,source_name,risk_level_num,days_since_first_seen,days_active,risk_category,risk_score_norm
+1,LOW,5.0,2026-07-08 10:57:02.448590,null,8.8.8.8,ipv4,2026-07-08 10:57:02.424310,2026-07-08 10:57:02.424320,virustotal,1,6,0,Minimal,0.0

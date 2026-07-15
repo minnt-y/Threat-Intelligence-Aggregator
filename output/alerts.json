@@ -1,0 +1,19 @@
+[
+  {
+    "alert_id":1,
+    "risk_level":"LOW",
+    "risk_score":5.0,
+    "created_at":1783508222448,
+    "raw_data":"null",
+    "ioc_value":"8.8.8.8",
+    "ioc_type":"ipv4",
+    "first_seen":1783508222424,
+    "last_seen":1783508222424,
+    "source_name":"virustotal",
+    "risk_level_num":1,
+    "days_since_first_seen":6,
+    "days_active":0,
+    "risk_category":"Minimal",
+    "risk_score_norm":0.0
+  }
+]
