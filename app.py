@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from database import get_db, init_db
 from analyzer import ThreatAnalyzer
 
 st.set_page_config(
@@ -10,6 +8,8 @@ st.set_page_config(
     page_icon="🛡️",
     layout="wide",
 )
+
+RISK_COLORS = {"HIGH": "#dc2626", "MEDIUM": "#f59e0b", "LOW": "#16a34a"}
 
 
 @st.cache_resource
@@ -24,24 +24,46 @@ def load_data():
 # Load Data
 analyzer = load_data()
 
-# Sidebar Filtration
+# ========== Session State Initiate ==========
+if "risk_levels" not in st.session_state:
+    st.session_state.risk_levels = ["HIGH", "MEDIUM", "LOW"]
+if "ioc_types" not in st.session_state:
+    st.session_state.ioc_types = analyzer.df["ioc_type"].unique().tolist()
+if "selected_actors" not in st.session_state:
+    st.session_state.selected_actors = []
+if "date_range" not in st.session_state:
+    st.session_state.date_range = (
+        analyzer.df["created_at"].min().date(),
+        analyzer.df["created_at"].max().date(),
+    )
+if "table_page" not in st.session_state:
+    st.session_state.table_page = 0
+if "sort_by" not in st.session_state:
+    st.session_state.sort_by = "risk_score"
+if "sort_asc" not in st.session_state:
+    st.session_state.sort_asc = False
+
+
+# Sidebar
 st.sidebar.title("🛡️ Threat Intel")
 st.sidebar.markdown("---")
-
 st.sidebar.subheader("🔍 Filters")
 
 # 1) Risk Level
 risk_levels = st.sidebar.multiselect(
     "Risk Level",
     options=["HIGH", "MEDIUM", "LOW"],
-    default=["HIGH", "MEDIUM", "LOW"],
+    default=st.session_state.risk_levels,
 )
+st.session_state.risk_levels = risk_levels
+
 # 2) IOC Type
 ioc_types = st.sidebar.multiselect(
     "IOC Type",
     options=analyzer.df["ioc_type"].unique().tolist(),
-    default=analyzer.df["ioc_type"].unique().tolist(),
+    default=st.session_state.ioc_types,
 )
+st.session_state.ioc_types = ioc_types
 
 # 3) Threat Actor
 actor_list = analyzer.df.get("threat_actor", pd.Series()).dropna().unique().tolist()
@@ -49,8 +71,9 @@ if actor_list:
     selected_actors = st.sidebar.multiselect(
         "Threat Actor",
         options=actor_list,
-        default=[],
+        default=st.session_state.selected_actors,
     )
+    st.session_state.selected_actors = selected_actors
 else:
     selected_actors = []
     st.sidebar.caption("No actor data available")
@@ -62,14 +85,14 @@ max_date = analyzer.df["created_at"].max().date()
 
 date_range = st.sidebar.date_input(
     "Select range",
-    value=(min_date, max_date),
+    value=st.session_state.date_range,
     min_value=min_date,
     max_value=max_date,
 )
-
+st.session_state.date_range = date_range
 st.sidebar.markdown("---")
 
-# App Filtration
+# Apply Filters
 filtered_df = analyzer.df.copy()
 # 1) Risk Level filtration
 if risk_levels:
@@ -124,7 +147,7 @@ with col_left:
         values="Count",
         names="Risk Level",
         color="Risk Level",
-        color_discrete_map={"HIGH": "#ff4444", "MEDIUM": "#ffaa00", "LOW": "#00aa00"},
+        color_discrete_map=RISK_COLORS,
         hole=0.4,
     )
 
@@ -199,9 +222,55 @@ with col_right2:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# Data Table
+# Table sorting + Pagination
 st.markdown("---")
 st.subheader("Alert Details")
+
+# Sort Control
+sort_col1, sort_col2 = st.columns(2)
+with sort_col1:
+    sort_by = st.selectbox(
+        "Sort by",
+        ["risk_score", "created_at", "alert_id", "ioc_value"],
+        index=["risk_score", "created_at", "alert_id", "ioc_value"].index(
+            st.session_state.sort_by
+        ),
+    )
+    st.session_state.sort_by = sort_by
+with sort_col2:
+    sort_asc = st.checkbox("Ascending", value=st.session_state.sort_asc)
+    st.session_state.sort_asc = sort_asc
+
+# App sorting
+sorted_df = filtered_df.sort_values(
+    st.session_state.sort_by, ascending=st.session_state.sort_asc
+)
+
+# Paging
+page_size = 20
+total_pages = max(1, (len(sorted_df) + page_size - 1) // page_size)
+
+page_col1, page_col2, page_col3 = st.columns([1, 2, 1])
+with page_col1:
+    if st.button("⬅️ Prev") and st.session_state.table_page > 0:
+        st.session_state.table_page -= 1
+with page_col2:
+    st.session_state.table_page = st.number_input(
+        "Page",
+        min_value=0,
+        max_value=total_pages - 1,
+        value=st.session_state.table_page,
+        step=1,
+    )
+    st.caption(f"Page {st.session_state.table_page + 1} of {total_pages}")
+with page_col3:
+    if st.button("Next ➡️") and st.session_state.table_page < total_pages - 1:
+        st.session_state.table_page += 1
+
+# Display the current page
+start_idx = st.session_state.table_page * page_size
+end_idx = min(start_idx + page_size, len(sorted_df))
+
 st.dataframe(
     filtered_df[
         ["alert_id", "ioc_value", "ioc_type", "risk_level", "risk_score", "source_name"]
