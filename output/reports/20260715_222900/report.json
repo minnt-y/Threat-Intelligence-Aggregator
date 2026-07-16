@@ -1,0 +1,36 @@
+{
+  "report_title": "Threat Intelligence Report",
+  "generated_at": "2026-07-15T22:29:00.438930",
+  "summary": {
+    "total_alerts": 5,
+    "avg_risk_score": 69.0,
+    "high_risk_pct": 80.0,
+    "top_ioc": "192.168.1.00"
+  },
+  "risk_distribution": {
+    "HIGH": 4,
+    "LOW": 1
+  },
+  "top_iocs": {
+    "192.168.1.00": 1,
+    "192.168.1.50": 1,
+    "8.8.8.8": 1,
+    "malware222850.com": 1,
+    "malware222900.com": 1
+  },
+  "top_threat_actors": [
+    {
+      "actor_name": "APT28",
+      "confidence": "HIGH",
+      "ioc_count": 1,
+      "alert_count": 1
+    }
+  ],
+  "source_reliability": [
+    {
+      "risk_score": 69.0,
+      "alert_count": 5
+    }
+  ],
+  "total_records": 5
+}

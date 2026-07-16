@@ -1,0 +1,2 @@
+total_alerts,avg_risk_score,high_risk_pct,top_ioc
+5,69.0,80.0,192.168.1.00

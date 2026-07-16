@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     event,
+    Index,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from datetime import datetime, timezone
@@ -47,7 +48,7 @@ class IOC(Base):
     __tablename__ = "iocs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    value = Column(String, nullable=False)  # ipv4, domain, hash, etc
+    value = Column(String, nullable=False)  # ipv4, domain, hash, etc.
     type = Column(String, nullable=False)
     first_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_seen = Column(
@@ -60,8 +61,12 @@ class IOC(Base):
     alerts = relationship("Alert", back_populates="ioc")
     attributions = relationship("Attribution", back_populates="ioc")
 
-    def __repr__(self):
-        return f"<IOC {self.value} ({self.type})>"
+    # Add Index
+    __table_args__ = (
+        Index("idx_ioc_value", "value"),
+        Index("idx_ioc_type", "type"),
+        Index("idx_ioc_last_seen", "last_seen"),
+    )
 
 
 class Source(Base):
@@ -79,8 +84,7 @@ class Source(Base):
     # Relationship
     alerts = relationship("Alert", back_populates="source")
 
-    def __repr__(self):
-        return f"<Source {self.name}>"
+    __table_args__ = (Index("idx_source_name", "name"),)
 
 
 class Attribution(Base):
@@ -98,8 +102,10 @@ class Attribution(Base):
     # Relationship
     ioc = relationship("IOC", back_populates="attributions")
 
-    def __repr__(self):
-        return f"<Attribution {self.actor_name}>"
+    __table_args__ = (
+        Index("idx_attr_actor", "actor_name"),
+        Index("idx_attr_ioc", "ioc_id"),
+    )
 
 
 class Alert(Base):
@@ -119,8 +125,11 @@ class Alert(Base):
     ioc = relationship("IOC", back_populates="alerts")
     source = relationship("Source", back_populates="alerts")
 
-    def __repr__(self):
-        return f"<Alert {self.ioc.value} ({self.risk_level})>"
+    __table_args__ = (
+        Index("idx_alert_ioc_source", "ioc_id", "source_id"),
+        Index("idx_alert_risk_level", "risk_level"),
+        Index("idx_alert_created_at", "created_at"),
+    )
 
 
 def init_db():

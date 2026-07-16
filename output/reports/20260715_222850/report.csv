@@ -1,0 +1,4 @@
+alert_id,risk_level,risk_score,created_at,raw_data,ioc_value,ioc_type,first_seen,last_seen,source_name,risk_level_num,days_since_first_seen,days_active,risk_category,risk_score_norm
+1,LOW,5.0,2026-07-08 10:57:02.448590,null,8.8.8.8,ipv4,2026-07-08 10:57:02.424310,2026-07-08 10:57:02.424320,virustotal,1,7,0,Minimal,0.0
+2,HIGH,85.0,2026-07-15 14:28:50.770012,"{""malicious"": 15, ""harmless"": 2}",192.168.1.50,ipv4,2026-07-15 14:28:50.753155,2026-07-15 14:28:50.753161,virustotal,3,0,0,Critical,1.0
+3,HIGH,85.0,2026-07-15 14:28:50.788234,"{""malicious"": 15, ""harmless"": 2}",malware222850.com,domain,2026-07-15 14:28:50.780956,2026-07-15 14:28:50.780964,virustotal,3,0,0,Critical,1.0
